@@ -1,0 +1,48 @@
+include:
+  - ../nginx/docker-compose.yml
+
+services:
+  django:
+    build: .
+    ports:
+      - 8000:8000
+    environment:
+      - DATABASE_URL=postgres://postgres:root@db:5432/mydb
+      - RABBITMQ_URL=amqp://guest:guest@host.docker.internal:5672/
+      - ASSETS_URL=http://localhost:9000
+    volumes:
+      - .:/home/my-user/app
+      - external-storage:/media/uploads
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  db:
+    image: postgres:15.8-alpine3.20
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=mydb
+
+  pgadmin:
+    image: dpage/pgadmin4:8.11.0
+    ports:
+      - 5050:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    depends_on:
+      - db
+
+  change_media_permission:
+    build: .
+    user: root
+    command: chown -R 1000:1000 /media/uploads
+    volumes:
+      - external-storage:/media/uploads
+    depends_on:
+      - django
+  
+volumes:
+  external-storage:
+    external: true
